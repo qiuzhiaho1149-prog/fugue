@@ -44,6 +44,10 @@ is_ancestor() {
   git -C "$repo_top" merge-base --is-ancestor "$1" "$2" >/dev/null 2>&1
 }
 
+tip_rev() {
+  git -C "$repo_top" rev-parse "$1" 2>/dev/null || echo ""
+}
+
 mainline_ref=""
 origin_head=$(git -C "$repo_top" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)
 if [[ -n "$origin_head" ]]; then
@@ -101,34 +105,67 @@ dirty_state() {
 }
 
 classify_parentage() {
-  local branch="$1" base="" best="" best_base="" other="" mb=""
+  local branch="$1" base="" best="" best_base="" best_ambiguous=0 other="" mb="" tip="" other_base="" other_tip=""
   [[ -n "$branch" ]] || { echo "detached"; return; }
   branch_exists "$branch" || { echo "mainline"; return; }
   [[ "$branch" == "$mainline_name" ]] && { echo "mainline"; return; }
 
   base=$(merge_base "$branch" "$mainline_ref")
   [[ -n "$base" ]] || { echo "mainline"; return; }
+  tip=$(tip_rev "$branch")
+  [[ -n "$tip" ]] || { echo "mainline"; return; }
 
   while IFS= read -r other; do
     [[ -n "$other" ]] || continue
     [[ "$other" == "$branch" || "$other" == "$mainline_name" ]] && continue
+    [[ "$branch" != codex/* && "$other" == codex/* ]] && continue
     mb=$(merge_base "$branch" "$other")
     [[ -n "$mb" && "$mb" != "$base" ]] || continue
     is_ancestor "$base" "$mb" || continue
+    [[ "$mb" != "$tip" ]] || continue
+    is_ancestor "$mb" "$tip" || continue
+    other_base=$(merge_base "$other" "$mainline_ref")
+    other_tip=$(tip_rev "$other")
+    local ambiguous=0
+    if [[ -n "$other_base" && -n "$other_tip" && "$mb" != "$other_base" && "$mb" != "$other_tip" ]] \
+      && is_ancestor "$other_base" "$mb" && is_ancestor "$mb" "$other_tip"; then
+      ambiguous=1
+    fi
     if [[ -z "$best" ]]; then
       best="$other"
       best_base="$mb"
+      best_ambiguous="$ambiguous"
     elif [[ "$best_base" != "$mb" ]] && is_ancestor "$best_base" "$mb"; then
       best="$other"
       best_base="$mb"
+      best_ambiguous="$ambiguous"
     elif [[ "$best_base" == "$mb" && "$best" == codex/* && "$other" != codex/* ]]; then
       best="$other"
       best_base="$mb"
+      best_ambiguous="$ambiguous"
     fi
   done < <(git -C "$repo_top" branch --list --format='%(refname:short)')
 
+  if [[ "$branch" == codex/* ]]; then
+    while IFS= read -r other; do
+      [[ -n "$other" ]] || continue
+      [[ "$other" == "$branch" || "$other" == "$mainline_name" || "$other" == codex/* ]] && continue
+      mb=$(merge_base "$branch" "$other")
+      [[ "$mb" == "$tip" && "$mb" != "$base" ]] || continue
+      is_ancestor "$base" "$mb" || continue
+      best="$other"
+      best_base="$mb"
+      best_ambiguous=0
+      break
+    done < <(git -C "$repo_top" branch --list --format='%(refname:short)')
+  fi
+
   if [[ -n "$best" ]]; then
-    echo "stacked-on:$best"
+    if [[ "$best_ambiguous" -eq 1 ]]; then
+      echo "stacked-on:$best (ambiguous)"
+    else
+      echo "stacked-on:$best"
+    fi
   else
     echo "mainline"
   fi
