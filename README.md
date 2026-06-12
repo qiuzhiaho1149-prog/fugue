@@ -1,8 +1,12 @@
 <div align="center">
 
-# 🐎 claude-codex-harness
+<img src="docs/assets/banner.svg" alt="Fugue — a Claude × Codex engineering harness" width="100%" />
 
-**Reins for AI-driven software engineering.**
+# 🎼 Fugue
+
+*In a fugue, many voices develop one theme under strict counterpoint.*
+*Here, many agents build one spec under shared constraints.*
+
 Claude Code as the CEO/orchestrator · OpenAI Codex CLI as the worker fleet · code-as-design use-case modeling — a complete anti-drift multi-agent engineering harness.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -17,6 +21,9 @@ Claude Code as the CEO/orchestrator · OpenAI Codex CLI as the worker fleet · c
 
 ---
 
+> [!NOTE]
+> **Origin.** When **Fable 5** shipped, I gave it the CEO seat and pointed it at a years-old quant trading codebase. Fable modeled and dispatched, Codex workers wrote every line, spec tests were the only design documents — the full rebuild runs on exactly this harness. Even this repo's SVG art was produced by a Codex worker dispatched through the pipeline it illustrates.
+
 ## Why
 
 Most people drive one AI agent at a time, by hand, and watch the work **drift**: design docs fall out of sync with code, each session re-explains everything, workers quietly weaken tests to "pass". This repo is a working counter-design:
@@ -24,6 +31,13 @@ Most people drive one AI agent at a time, by hand, and watch the work **drift**:
 - 🧠 **Claude (main session) never writes implementation code.** It models, plans, dispatches, and reviews — a CEO with parallel subagent teams.
 - 🔧 **Codex CLI workers do the coding.** Yes — *Claude can drive Codex*: headless `codex exec`, one task = one git worktree = one resumable thread, reviewed before merge. The dispatch wrapper is included.
 - 📐 **Design documents are executable.** A feature is modeled as a typed use-case contract + Given/When/Then spec tests. The work order degenerates to *"make these tests pass"* — pointers, not prose. Prose drifts; specs don't.
+
+<div align="center">
+<img src="docs/assets/architecture.svg" alt="Fugue architecture" width="100%" />
+</div>
+
+<details>
+<summary>Text version (mermaid)</summary>
 
 ```mermaid
 flowchart TD
@@ -35,6 +49,8 @@ flowchart TD
     R -->|"merge / rework / re-spec"| M[("merge")]
     R -.->|rework ≤2 rounds| W
 ```
+
+</details>
 
 ## What's inside
 
@@ -72,9 +88,9 @@ And the bricks compose 🧱: use cases may never call each other, state arrives 
 ## Install
 
 ```bash
-git clone https://github.com/qiuzhiaho1149-prog/claude-codex-harness
-cp claude-codex-harness/CLAUDE.md ~/.claude/CLAUDE.md          # or merge into yours
-cp -R claude-codex-harness/skills/* ~/.claude/skills/
+git clone https://github.com/qiuzhiaho1149-prog/fugue
+cp fugue/CLAUDE.md ~/.claude/CLAUDE.md          # or merge into yours
+cp -R fugue/skills/* ~/.claude/skills/
 ```
 
 **Requirements**
