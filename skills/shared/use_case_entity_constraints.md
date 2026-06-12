@@ -52,6 +52,25 @@ the skill copy is the seed.
 - latency measurement, tracing spans → executor.
 - wide `try/except` swallowing errors → forbidden everywhere, doubly so in core.
 
+## Ports
+
+- A port `Protocol` is owned by the use-case side; every implementation (real adapter, in-memory
+  stub, test double) must pass the SAME contract test suite, shipped next to the port definition.
+  A stub that only satisfies the spec tests but not the port contract is a drift source.
+
+## Two tracks: research vs delivery (spec mutability)
+
+- **Delivery track** (use cases shipping behavior): spec is FROZEN once committed; behavior change
+  = new reviewed spec commit first. All rules in this file apply.
+- **Research track** (hypotheses, factors, measurements): the spec equivalent is a pre-registered
+  **hypothesis card** — claim, falsification criterion, measurement procedure (the ruler), and
+  expiry — committed BEFORE the experiment runs. Cards are versioned-mutable via a supersedes
+  chain, never edited in place after results exist (that is p-hacking by git).
+- **Promotion gate** is the only door between tracks: a hypothesis becomes a delivery-track use
+  case only with evidence pointers attached; any constant in a `GivenState`/threshold that came
+  from research must cite its evidence file. No promotion without a surviving falsification
+  attempt. Refuted cards stay in the ledger — they are the highest-value entries.
+
 ## Code-as-design discipline (anti-drift)
 
 - The use-case file (types + spec tests) IS the design document. Do not write a parallel markdown

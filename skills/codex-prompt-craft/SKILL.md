@@ -73,6 +73,13 @@ git diff --check
 
 All must pass clean.
 
+**Acceptance-modality rule**: acceptance checks must live in the same modality as the defect space.
+Code → tests/lint. Visual deliverables (SVG/UI/plots) → render-level geometry checks shipped WITH the
+order (e.g. a bounding-box pairwise-overlap script that applies `<g transform>` chains — raw x/y
+attributes lie under transforms). Data artifacts → schema + row-count + checksum. XML-parses /
+grep-clean NEVER proves a visual layout is correct; a defect only a human eye can catch means the
+order's acceptance section was under-specified.
+
 ## Transparency report (at end)
 
 1. Final commit hash

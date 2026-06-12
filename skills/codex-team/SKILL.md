@@ -40,7 +40,7 @@ Two files rule this system. THIS file = how the chief engineer operates. `standi
    e. Any new gate/threshold/state machine → justify like a new dependency.
    f. Trust-anchor code (measurement/risk/money paths) → cross-family adversarial audit before merge.
 6. **Rework**: ruling + concrete feedback (file:line, expected vs actual) → `codex-task.sh resume <slug>`. ~2 rounds max; still failing → the spec was wrong: re-spec or take over.
-7. **Merge & clean**: merge into the integration branch only after the gate; `codex-task.sh clean <slug>`; log outcome + failed approaches to the program ledger.
+7. **Merge & clean**: merge into the integration branch only after the gate; log outcome + failed approaches to the program ledger. **Clean timing**: `clean <slug>` only after USER-level acceptance, not after the chief-engineer gate — for user-visible deliverables (visuals/UI/copy) the chief gate passing does not end rework probability. The wrapper enforces this (refuses to clean an unmerged branch without `--force`); `resume` self-heals a missing worktree from the retained branch.
 
 ## 3. Authoring a work order
 
@@ -101,7 +101,18 @@ Verified facts (codex-cli 0.137.0-alpha.4, 2026-06-11):
 - `--net` only for installs/APIs (workspace-write blocks network); `--search` enables the web-search tool for research-flavored orders.
 - MCP channel (`codex`/`codex-reply`, workspace-write-locked) exists for quick synchronous micro-tasks; NEVER parallelize via MCP (hang bugs, openai/codex#6664).
 
-## 5. Parallelism & quota
+## 5. Slicing, parallelism & quota
+
+**Slice taxonomy** — every WO declares its type; type sets the defaults:
+
+| type | shape | effort | parallel? |
+|---|---|---|---|
+| `mechanical` | rename / migration / config sweep, fully specified | low | ✓ fleet |
+| `spec-implement` | make frozen spec tests pass (one use case / brick) | medium | ✓ if file-disjoint |
+| `design-memo` | read-only current-state map + proposal + forks | high | ✗ serial; ratify before slicing |
+| `probe` | read-only investigation / measurement → evidence file | low/medium | ✓ fleet |
+
+Slice by **acceptance boundary**, not by code layer: one slice = one binary acceptance command set = one worktree. If a slice needs two unrelated acceptance suites, it is two slices. Size budget: ≤10 files, ≤1 sitting of worker time.
 
 - Fan out only homogeneous, file-disjoint tasks; never two workers on the same files.
 - Default ≤2 concurrent, max 3 — ChatGPT-plan auth shares ONE 5-hour reasoning window (N workers ≈ N× drain); flag to the user before >2.

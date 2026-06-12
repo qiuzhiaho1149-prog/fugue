@@ -68,8 +68,20 @@ This phase is the deliverable of "/plan". Output is code, not prose.
 - Each use case is an independent brick: no use_case→use_case imports means N use cases
   can be built/replaced/audited by N independent workers in parallel without decision collisions.
 
+## Spec quality gates (the spec itself is now the drift surface)
+
+- **Mutation check**: a weak spec passes garbage. After phase 2, run mutation testing (`mutmut` or
+  hand-mutate 3-5 core branches: flip a comparison, drop a guard, off-by-one a threshold) — every
+  mutant the spec tests fail to kill is a hole in the design, not in the implementation. Surviving
+  mutants → strengthen the spec test, re-dispatch.
+- **Port contract tests**: every port `Protocol` the use case defines ships ONE contract test suite
+  that ALL implementations (real adapter in `infra/` AND the stub used in spec tests) must pass.
+  Without it, stub and real adapter drift apart and green specs lie about production.
+
 ## Done when
 
 - [ ] Contract file type-checks; spec tests fail only on `NotImplementedError` (phase 1) or all pass (phase 2)
 - [ ] No prose design doc was produced for this scope
 - [ ] Acceptance pytest re-run by the reviewer, not trusted from the worker's report
+- [ ] Mutation check run; no surviving mutants on core branches
+- [ ] Each new port has a contract test suite that both stub and real impl pass

@@ -22,6 +22,15 @@ Subagents are independent subordinate teams — one user request spawns **N agen
 
 Spawns without an explicit `model` inherit the main session's large model — **always set `model="sonnet"` explicitly for non-high-judgment tasks**, or token cost explodes (Anthropic measured ~15× tokens for multi-agent).
 
+**Model-trait adaptation** (constraints tailored to known failure modes, not just capability tiers):
+| Model | Strength | Known disease | Countermeasure (baked into orders/prompts) |
+|---|---|---|---|
+| Codex/GPT workers | long mechanical edits; relentless "make tests green" | weakening assertions / adding fallbacks / swallowing exceptions / unauthorized compat layers | standing orders name-ban them + review-gate grep patterns |
+| Claude subagents | synthesis / audit / cross-file reasoning | hallucinated paths & line numbers from memory | prompts carry verbatim paths+SHA; claims must be re-grepped before citing |
+| Opus main session | decisions / modeling / verdicts | high-context drift + failing self-correction | the whole Context budget section + doc quarantine |
+| Haiku | high-volume structured light work | unreliable open-ended judgment | only schema-bound tasks, no design discretion |
+| Cross-family universal | — | self-graded reports skew green | acceptance always re-run by a different party; same-modality acceptance |
+
 **Default fan-out**: complex request → **2–5 agents dispatched together, default 3** (beyond 5, coordination overhead dominates).
 
 **Fan-out fit**:
@@ -67,6 +76,12 @@ Subagents cannot see the current conversation — prompts must be **self-contain
 - Shared hard constraints: `~/.claude/skills/shared/use_case_entity_constraints.md` — one rulebook, change a rule in one place only
 - Drift discipline: behavior changes start by changing a spec test, then the implementation; work orders carry file:line pointers and never restate business rules
 
+**Two tracks (research vs delivery)** — for projects that research and build simultaneously:
+- **Delivery track**: the full frozen-spec discipline above applies.
+- **Research track**: the spec-equivalent is a **hypothesis card** (claim + falsification criterion + measurement ruler + expiry), committed BEFORE the experiment runs; cards are versioned via a supersedes chain, never edited in place after results exist (that is p-hacking by git). Output is a verdict + evidence-file pointer, never mainline code.
+- **Promotion gate**: the only door between tracks — a hypothesis becomes a delivery use case only with evidence pointers and a survived falsification attempt; research-derived constants must cite their evidence file. Refuted cards stay in the ledger (highest-value entries).
+- Track selection is the first slicing question of any work order: is this a `probe` (research) or `spec-implement` (delivery)? See codex-team §5.
+
 ## Tools
 - Long tasks (builds / training / backfills) run via Bash `run_in_background` — never sleep-poll.
 - Irreversible actions (`git push --force`, data deletion, production / risk-parameter changes) require explicit re-confirmation first.
@@ -82,6 +97,9 @@ Subagents cannot see the current conversation — prompts must be **self-contain
 Hallucination gets severe at high context (paths from memory / cross-turn inconsistency / failed self-correction) — don't wait for auto-compact. **Task boundaries and context% are orthogonal dimensions**: handoff is a task-boundary action; context% triggers in-place compaction or subagent isolation.
 
 1. **Prevention (always)**: foreseeably noisy work (broad greps / cross-repo exploration / long logs) goes to a spawned subagent; the main context receives only the summary.
+
+   **Doc quarantine**: the main session never directly Reads any document >100 lines (design docs / papers / old reports / specs) — a subagent reads it and returns a summary + file:line citation pointers (each claim carries its source line; the main session spot-reads ≤20 lines by pointer when needed). Three doc classes set the treatment: **law** (current contracts/constraints: read only a ≤1-page INDEX) / **evidence** (experiment artifacts: always pointer-referenced, never inlined) / **stale** (old docs are untrusted by default — leads only; claims must be re-verified against current code file:line). New documents must carry a ≤5-line TL;DR frontmatter; the main session reads only the frontmatter.
+
 2. **60% self-audit**: mentally list what must survive: (a) paths + line numbers (b) key decisions + rationale (c) in-flight commands + results (d) blockers + approaches proven not to work (e) commit hashes / formulas / threshold constants.
 3. **70% in-task `/compact <preservation instructions>`**: bare `/compact` is forbidden; explicitly state what to keep (the 60% list) and what to drop (full tool outputs / exploratory greps / superseded discussion); after compaction, verify with one "summarize where we are" question.
 4. **Task boundary (independent of %)**: phase done → `/clear` or a new session.

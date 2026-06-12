@@ -186,7 +186,17 @@ cmd_resume() {
   # meta.json only gets thread_id at completion; fall back to the live event stream
   [[ -n "$thread_id" ]] || thread_id=$(extract_thread_id "$runs/events.jsonl")
   [[ -n "$thread_id" ]] || die "thread_id not in meta.json nor events.jsonl — cannot resume"
-  [[ -d "$worktree" ]]  || die "worktree not found: $worktree"
+  if [[ ! -d "$worktree" ]]; then
+    # Self-heal: a cleaned task retains its branch — recreate the worktree from it
+    local repo branch
+    repo=$(read_meta_field "$slug" repo)
+    branch=$(read_meta_field "$slug" branch)
+    git -C "$repo" rev-parse --verify "refs/heads/$branch" >/dev/null 2>&1 \
+      || die "worktree gone and branch $branch missing — cannot resume"
+    mkdir -p "$(dirname "$worktree")"
+    git -C "$repo" worktree add "$worktree" "$branch"
+    echo "NOTE: worktree recreated from retained branch $branch"
+  fi
 
   # Number resume prompt
   local n=2
@@ -332,6 +342,16 @@ cmd_clean() {
   local worktree repo
   worktree=$(read_meta_field "$slug" worktree)
   repo=$(read_meta_field "$slug" repo)
+
+  # Guard: premature clean severs the rework channel before user-level acceptance.
+  # Refuse unless the task branch is already merged into the repo's current HEAD.
+  local branch
+  branch=$(read_meta_field "$slug" branch)
+  if [[ $force -eq 0 ]] && git -C "$repo" rev-parse --verify "refs/heads/$branch" >/dev/null 2>&1; then
+    if ! git -C "$repo" merge-base --is-ancestor "$branch" HEAD 2>/dev/null; then
+      die "branch $branch not merged into HEAD — deliverable may still need rework (clean only after user-level acceptance). Use --force to override"
+    fi
+  fi
 
   if [[ -d "$worktree" ]]; then
     if [[ $force -eq 1 ]]; then
