@@ -6,6 +6,28 @@ set -euo pipefail
 CODEX_BIN="${CODEX_BIN:-/Applications/Codex.app/Contents/Resources/codex}"
 RUNS_BASE="${RUNS_BASE:-$HOME/.claude/codex-team/runs}"
 
+STALL_TIMEOUT="${CODEX_STALL_TIMEOUT:-900}"  # seconds with no new events.jsonl output => stuck, kill
+STALL_POLL=30
+AUTO_RESUME="${CODEX_AUTO_RESUME:-1}"        # auto-resume attempts after a stall kill (0 disables)
+
+# Anti-hang config, per-invocation only — NEVER edit ~/.codex/config.toml globally
+# (notify/SkyComputerUseClient is needed by the desktop app; only headless runs override it):
+# - notify=[]: SkyComputerUseClient orphans (openai/codex#26293) keep headless exec from exiting
+# - stream idle/retries: a stalled SSE otherwise holds the process 5min x 5 retries silently
+# - figma MCP off: remote HTTP server with no startup timeout = unbounded startup hang
+# - startup_timeout caps: node_repl stays enabled (S1 numeric work) but 120s -> 30s
+ANTI_HANG_ARGS=(
+  # model_verbosity=low: API-level cut of narrative/reassurance filler in reports
+  # (binary-verified key; ignored gracefully if the model lacks verbosity support)
+  -c 'model_verbosity="low"'
+  -c 'notify=[]'
+  -c 'stream_idle_timeout_ms=60000'
+  -c 'stream_max_retries=3'
+  -c 'mcp_servers.figma.enabled=false'
+  -c 'mcp_servers.node_repl.startup_timeout_sec=30'
+  -c 'mcp_servers.codegraph.startup_timeout_sec=15'
+)
+
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 require_slug() {
@@ -40,6 +62,64 @@ update_meta() {
   local meta="$1"; shift
   local tmp; tmp=$(mktemp)
   jq "$@" "$meta" > "$tmp" && mv "$tmp" "$meta"
+}
+
+# Run one codex invocation under a stall watchdog.
+# Args: <runs_dir> <workdir> <argv...>. Sets WD_EXIT, WD_STUCK (1 = killed for stalling).
+run_with_watchdog() {
+  local runs="$1" workdir="$2"; shift 2
+  WD_EXIT=0; WD_STUCK=0
+  ( cd "$workdir" && exec "$@" ) \
+    >> "$runs/events.jsonl" 2>> "$runs/stderr.log" </dev/null &
+  local pid=$!
+  update_meta "$runs/meta.json" --argjson pid "$pid" '.pid=$pid'
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep "$STALL_POLL"
+    local now mtime age
+    now=$(date +%s)
+    mtime=$(stat -f %m "$runs/events.jsonl" 2>/dev/null || echo "$now")
+    age=$(( now - mtime ))
+    if (( age >= STALL_TIMEOUT )); then
+      WD_STUCK=1
+      echo "WATCHDOG: no output for ${age}s (limit ${STALL_TIMEOUT}s) — killing pid $pid" >> "$runs/stderr.log"
+      kill -TERM "$pid" 2>/dev/null || true
+      sleep 5
+      kill -KILL "$pid" 2>/dev/null || true
+      break
+    fi
+  done
+  wait "$pid" 2>/dev/null && WD_EXIT=0 || WD_EXIT=$?
+}
+
+# Watchdog + auto-resume-on-stall loop. Sets RC_EXIT, RC_STUCK, RC_RESTARTS.
+run_codex_task() {
+  local runs="$1" workdir="$2"; shift 2
+  run_with_watchdog "$runs" "$workdir" "$@"
+  RC_EXIT=$WD_EXIT; RC_STUCK=$WD_STUCK; RC_RESTARTS=0
+  while [[ $RC_STUCK -eq 1 && $RC_RESTARTS -lt $AUTO_RESUME ]]; do
+    RC_RESTARTS=$((RC_RESTARTS + 1))
+    local tid; tid=$(extract_thread_id "$runs/events.jsonl")
+    [[ -n "$tid" ]] || break  # no thread yet (stalled during startup) — nothing to resume
+    echo "WATCHDOG: auto-resume attempt $RC_RESTARTS/$AUTO_RESUME thread=$tid" >> "$runs/stderr.log"
+    run_with_watchdog "$runs" "$workdir" "$CODEX_BIN" exec resume "$tid" \
+      -c 'approval_policy="never"' --json -o "$runs/last.md" --skip-git-repo-check \
+      "${ANTI_HANG_ARGS[@]}" \
+      "WATCHDOG RESTART: your previous run was killed after ${STALL_TIMEOUT}s with no output (stall). Re-read your order, continue from the last completed step, and finish. If genuinely blocked, STOP and write the S5 surface report instead of stalling."
+    RC_EXIT=$WD_EXIT; RC_STUCK=$WD_STUCK
+  done
+}
+
+# Self-heal zombie metas: status "running" but the recorded pid is gone => "died".
+heal_meta() {
+  local meta="$1"
+  [[ -f "$meta" ]] || return 0
+  local st pid
+  st=$(jq -r '.status // empty' "$meta")
+  [[ "$st" == "running" ]] || return 0
+  pid=$(jq -r '.pid // empty' "$meta")
+  if [[ -z "$pid" || "$pid" == "null" ]] || ! kill -0 "$pid" 2>/dev/null; then
+    update_meta "$meta" '.status="died" | .pid=null'
+  fi
 }
 
 ##############################################################################
@@ -127,6 +207,7 @@ EOF
   codex_args+=(-o "$runs/last.md")
   codex_args+=(--add-dir "$git_common_dir")
   codex_args+=(--skip-git-repo-check)
+  codex_args+=("${ANTI_HANG_ARGS[@]}")
   [[ -n "$model" ]]  && codex_args+=(-m "$model")
   [[ -n "$effort" ]] && codex_args+=(-c "model_reasoning_effort=\"$effort\"")
   [[ $net -eq 1 ]]   && codex_args+=(-c "sandbox_workspace_write.network_access=true")
@@ -134,24 +215,24 @@ EOF
 
   touch "$runs/events.jsonl"
 
-  local exit_code=0
-  "$CODEX_BIN" "${codex_args[@]}" "$prompt_text" \
-    | tee -a "$runs/events.jsonl" \
-    || exit_code=$?
+  run_codex_task "$runs" "$worktree" "$CODEX_BIN" "${codex_args[@]}" "$prompt_text"
+  local exit_code=$RC_EXIT
 
   local finished; finished=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   local thread_id; thread_id=$(extract_thread_id "$runs/events.jsonl")
   local status="done"
-  [[ $exit_code -eq 0 ]] || status="failed"
+  if [[ $RC_STUCK -eq 1 ]]; then status="stuck"
+  elif [[ $exit_code -ne 0 ]]; then status="failed"; fi
 
   update_meta "$runs/meta.json" \
     --arg tid "$thread_id" \
     --arg fin "$finished" \
     --argjson ec "$exit_code" \
+    --argjson rs "$RC_RESTARTS" \
     --arg st "$status" \
-    '.thread_id=$tid | .finished=$fin | .exit_code=$ec | .status=$st'
+    '.thread_id=$tid | .finished=$fin | .exit_code=$ec | .status=$st | .restarts=$rs | .pid=null'
 
-  echo "CODEX-TASK $slug exit=$exit_code thread=$thread_id worktree=$worktree last=$runs/last.md"
+  echo "CODEX-TASK $slug status=$status exit=$exit_code restarts=$RC_RESTARTS thread=$thread_id worktree=$worktree last=$runs/last.md"
   exit $exit_code
 }
 
@@ -214,31 +295,33 @@ cmd_resume() {
 
   local prompt_text; prompt_text=$(cat "$runs/prompt.${n}.md")
 
-  # exec resume only supports a subset of flags (no -C, -s, --add-dir)
+  # exec resume only supports a subset of flags (no -C, -s, --add-dir);
+  # run_codex_task cd's into the worktree so resume inherits the correct CWD
   local codex_args=()
   codex_args+=(exec resume "$thread_id")
   codex_args+=(-c 'approval_policy="never"')
   codex_args+=(--json)
   codex_args+=(-o "$runs/last.md")
   codex_args+=(--skip-git-repo-check)
+  codex_args+=("${ANTI_HANG_ARGS[@]}")
 
-  local exit_code=0
-  # cd into worktree so exec resume inherits the correct CWD (it doesn't support -C)
-  (cd "$worktree" && "$CODEX_BIN" "${codex_args[@]}" "$prompt_text") \
-    | tee -a "$runs/events.jsonl" \
-    || exit_code=$?
+  update_meta "$(meta_file "$slug")" '.status="running" | .finished=""'
+  run_codex_task "$runs" "$worktree" "$CODEX_BIN" "${codex_args[@]}" "$prompt_text"
+  local exit_code=$RC_EXIT
 
   local finished; finished=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   local status="done"
-  [[ $exit_code -eq 0 ]] || status="failed"
+  if [[ $RC_STUCK -eq 1 ]]; then status="stuck"
+  elif [[ $exit_code -ne 0 ]]; then status="failed"; fi
 
   update_meta "$(meta_file "$slug")" \
     --arg fin "$finished" \
     --argjson ec "$exit_code" \
+    --argjson rs "$RC_RESTARTS" \
     --arg st "$status" \
-    '.finished=$fin | .exit_code=$ec | .status=$st'
+    '.finished=$fin | .exit_code=$ec | .status=$st | .restarts=$rs | .pid=null'
 
-  echo "CODEX-TASK $slug resume exit=$exit_code thread=$thread_id worktree=$worktree last=$runs/last.md"
+  echo "CODEX-TASK $slug resume status=$status exit=$exit_code restarts=$RC_RESTARTS thread=$thread_id worktree=$worktree last=$runs/last.md"
   exit $exit_code
 }
 
@@ -250,6 +333,7 @@ cmd_status() {
   local runs; runs=$(runs_dir "$slug")
   [[ -d "$runs" ]] || die "no run found for slug '$slug'"
 
+  heal_meta "$(meta_file "$slug")"
   echo "=== meta.json ==="
   cat "$(meta_file "$slug")"
   echo ""
@@ -380,7 +464,8 @@ cmd_list() {
   for meta in "$RUNS_BASE"/*/meta.json; do
     [[ -f "$meta" ]] || continue
     found=1
-    jq -r '[.slug, .status, .started, .thread_id] | @tsv' "$meta"
+    heal_meta "$meta"
+    jq -r '[.slug, .status, .started, (.restarts // 0 | tostring), .thread_id] | @tsv' "$meta"
   done
   [[ $found -eq 1 ]] || echo "(no runs)"
 }
