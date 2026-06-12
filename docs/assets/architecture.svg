@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
-  <title id="title">claude-codex-harness architecture</title>
+  <title id="title">Fugue architecture</title>
   <desc id="desc">Architecture diagram showing principal, Claude orchestration, Codex workers, review gate, merge, and anti-drift convergence points.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">

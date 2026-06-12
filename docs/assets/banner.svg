@@ -1,51 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
-  <title id="title">claude-codex-harness banner</title>
-  <desc id="desc">Hero banner for claude-codex-harness with converging orchestration lines.</desc>
+  <title id="title">Fugue banner</title>
+  <desc id="desc">Hero banner for Fugue with staggered voice-lines converging into one theme.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#111827"/>
       <stop offset="1" stop-color="#1e1b4b"/>
     </linearGradient>
-    <marker id="dot" markerWidth="8" markerHeight="8" refX="4" refY="4">
+    <marker id="dotTeal" markerWidth="8" markerHeight="8" refX="4" refY="4">
       <circle cx="4" cy="4" r="2.5" fill="#10a37f"/>
+    </marker>
+    <marker id="dotCoral" markerWidth="8" markerHeight="8" refX="4" refY="4">
+      <circle cx="4" cy="4" r="2.5" fill="#d97757"/>
     </marker>
   </defs>
   <rect width="1280" height="320" fill="url(#bg)"/>
   <rect x="24" y="24" width="1232" height="272" rx="28" fill="none" stroke="#334155" stroke-width="1"/>
 
-  <g opacity=".2" stroke="#94a3b8" stroke-width="1">
-    <path d="M92 64H318"/>
-    <path d="M92 256H350"/>
-    <path d="M1008 64h180"/>
-    <path d="M964 256h224"/>
+  <g opacity=".18" stroke="#94a3b8" stroke-width="1">
+    <path d="M88 228H1192"/>
+    <path d="M88 244H1192"/>
+    <path d="M88 260H1192"/>
+    <path d="M88 276H1192"/>
+    <path d="M88 292H1192"/>
   </g>
 
   <g fill="none" stroke-linecap="round">
-    <path d="M116 86 C256 92 342 124 438 158 S626 196 754 160" stroke="#64748b" stroke-width="1.5" opacity=".55" marker-start="url(#dot)"/>
-    <path d="M132 236 C270 228 344 198 438 162 S622 124 754 160" stroke="#64748b" stroke-width="1.5" opacity=".55" marker-start="url(#dot)"/>
-    <path d="M190 126 C300 126 376 146 438 160 S604 174 754 160" stroke="#10a37f" stroke-width="2" opacity=".72" marker-start="url(#dot)"/>
-    <path d="M194 196 C302 196 378 176 438 162 S606 146 754 160" stroke="#d97757" stroke-width="2" opacity=".78" marker-start="url(#dot)"/>
-    <path d="M754 160 C852 156 904 132 960 106" stroke="#d97757" stroke-width="2.5" opacity=".8"/>
-    <path d="M754 160 C852 164 904 188 960 214" stroke="#10a37f" stroke-width="2.5" opacity=".8"/>
-  </g>
-
-  <g transform="translate(754 160)">
-    <circle r="42" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
-    <circle r="26" fill="none" stroke="#d97757" stroke-width="2.5"/>
-    <circle r="8" fill="#10a37f"/>
-    <path d="M-18 -1C-8 -15 12 -15 22 0M-18 1C-8 15 12 15 22 0" fill="none" stroke="#e5e7eb" stroke-width="2" stroke-linecap="round"/>
+    <path d="M104 86 C230 88 310 126 420 172 S640 230 828 242 C950 250 1054 246 1176 238" stroke="#64748b" stroke-width="1.4" opacity=".42"/>
+    <path d="M152 118 C264 118 346 148 448 184 S652 232 828 242 C960 250 1062 246 1176 238" stroke="#10a37f" stroke-width="2.2" opacity=".82" marker-start="url(#dotTeal)"/>
+    <path d="M212 154 C322 154 388 174 482 198 S668 234 828 242 C966 248 1066 244 1176 238" stroke="#d97757" stroke-width="2.2" opacity=".85" marker-start="url(#dotCoral)"/>
+    <path d="M284 190 C386 190 446 206 534 218 S694 238 828 242 C966 246 1072 242 1176 238" stroke="#10a37f" stroke-width="2" opacity=".72" marker-start="url(#dotTeal)"/>
+    <path d="M356 226 C468 226 548 232 652 238 S826 246 984 242 S1110 238 1176 238" stroke="#d97757" stroke-width="2" opacity=".72" marker-start="url(#dotCoral)"/>
+    <path d="M704 242 C848 252 1022 250 1176 238" stroke="#f8fafc" stroke-width="3" opacity=".86"/>
   </g>
 
   <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
-    <text x="640" y="136" text-anchor="middle" fill="#f8fafc" font-size="50" font-weight="700">claude-codex-harness</text>
-    <text x="640" y="188" text-anchor="middle" fill="#cbd5e1" font-size="23" font-weight="500">Claude as CEO · Codex as workers · specs as the design doc</text>
-  </g>
-
-  <g transform="translate(1000 96)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M0 64 C34 24 78 24 112 64" stroke="#d97757" stroke-width="7"/>
-    <path d="M0 64 C34 104 78 104 112 64" stroke="#10a37f" stroke-width="7"/>
-    <path d="M30 64h52" stroke="#f8fafc" stroke-width="5"/>
-    <circle cx="30" cy="64" r="8" fill="#111827" stroke="#f8fafc" stroke-width="4"/>
-    <circle cx="82" cy="64" r="8" fill="#111827" stroke="#f8fafc" stroke-width="4"/>
+    <text x="640" y="134" text-anchor="middle" fill="#f8fafc" font-size="84" font-weight="760" letter-spacing="18">FUGUE</text>
+    <text x="640" y="178" text-anchor="middle" fill="#cbd5e1" font-size="24" font-weight="600">a Claude × Codex engineering harness</text>
+    <text x="640" y="216" text-anchor="middle" fill="#94a3b8" font-size="17" font-weight="500">Claude as CEO · Codex as workers · specs as the design doc</text>
   </g>
 </svg>
