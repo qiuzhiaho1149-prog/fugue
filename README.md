@@ -11,7 +11,7 @@ Claude Code as the CEO/orchestrator · OpenAI Codex CLI as the worker fleet · c
 [![Skills](https://img.shields.io/badge/skills-6-blue)]()
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
 
-[English](#why) · [中文](#-中文) · [日本語](#-日本語) · [Deutsch](#-deutsch)
+**English** · [简体中文](README.zh-CN.md) · [日本語](#-日本語) · [Deutsch](#-deutsch)
 
 </div>
 
@@ -87,19 +87,7 @@ Skills auto-register from `~/.claude/skills/`. Say "dispatch to codex", "write a
 
 ## 🇨🇳 中文
 
-<details>
-<summary><b>展开中文简介</b></summary>
-
-这是一套完整的「软件工程驾驭 AI」全局工作流（工程缰绳）：
-
-- **Claude 主对话当 CEO**：只做建模、规划、派单、验收，从不亲手写实现代码；并行 subagent 团队（Opus/Sonnet/Haiku 分级路由）做调研与审计，主线只读摘要。
-- **Codex CLI 当工人**：Claude 直接驱动 headless `codex exec`（很多人不知道 Codex 可以被 Claude 调用）——一单一 worktree 一分支，可恢复、可返工、过验收门才合并。派单 wrapper 见 `skills/codex-team/scripts/`。
-- **代码即设计**：业务建模 = 写类型契约 + Given/When/Then spec 测试，测试就是设计文档本体；给 Codex 的工单退化为「把这些测试做绿」的指针。中间文档越多越费 token 越漂移——所以中间文档归零。
-- **反漂移四收敛**：规则收敛到一个约束文件、设计收敛到可执行契约、执行收敛到指针工单、验收收敛到机器判定（评审者亲自重跑测试 + 10 项命名违规检查，`SPEC_TAMPERED` 一票否决）。
-
-每个用例是一块独立积木：用例互不调用 + 状态注入 + 副作用走 port——N 块积木可由 N 个 Codex worker 并行施工，零决策碰撞。
-
-</details>
+👉 **完整中文特化版：[README.zh-CN.md](README.zh-CN.md)** —— 含中文社区常见痛点对照、FAQ（为何要 Claude 派单 Codex / 与 TDD 的区别 / 非 Python 项目怎么办）与代理环境配置提示。
 
 ## 🇯🇵 日本語
 
