@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc">
   <title id="title">Fugue architecture</title>
   <desc id="desc">Architecture diagram showing principal, Claude orchestration, Codex workers, review gate, merge, and anti-drift convergence points.</desc>
   <defs>
@@ -13,8 +13,8 @@
       <path d="M0 0l10 5-10 5z" fill="#d97757"/>
     </marker>
   </defs>
-  <rect width="1200" height="760" fill="url(#bg)"/>
-  <rect x="24" y="24" width="1152" height="712" rx="24" fill="none" stroke="#334155" stroke-width="1"/>
+  <rect width="1200" height="690" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="642" rx="24" fill="none" stroke="#334155" stroke-width="1"/>
 
   <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
     <text x="40" y="70" fill="#f8fafc" font-size="28" font-weight="700">Engineering harness flow</text>
@@ -67,21 +67,21 @@
       <text x="1050" y="209" fill="#94a3b8" font-size="12">mainline only</text>
     </g>
 
-    <g transform="translate(226 300)">
+    <g transform="translate(226 292)">
       <text x="80" y="-22" text-anchor="middle" fill="#cbd5e1" font-size="13" font-weight="700">parallel subagent fan-out</text>
-      <path d="M80 -60V-40M80 -40H-56M80 -40H216M80 -40V0" stroke="#64748b" stroke-width="1.6" fill="none"/>
+      <path d="M80 -52V-34M80 -34H30M80 -34H130M80 -34V0M30 -34V48M130 -34V96" stroke="#64748b" stroke-width="1.6" fill="none"/>
       <g fill="#0f172a" stroke="#475569" stroke-width="1.2">
-        <rect x="-136" y="0" width="112" height="64" rx="12"/>
-        <rect x="24" y="0" width="112" height="64" rx="12"/>
-        <rect x="184" y="0" width="112" height="64" rx="12"/>
+        <rect x="0" y="0" width="160" height="40" rx="12"/>
+        <rect x="0" y="48" width="160" height="40" rx="12"/>
+        <rect x="0" y="96" width="160" height="40" rx="12"/>
       </g>
       <g text-anchor="middle" font-size="12">
-        <text x="-80" y="27" fill="#f8fafc" font-weight="700">explore</text>
-        <text x="-80" y="46" fill="#94a3b8">summaries only</text>
-        <text x="80" y="27" fill="#f8fafc" font-weight="700">audit</text>
-        <text x="80" y="46" fill="#94a3b8">summaries only</text>
-        <text x="240" y="27" fill="#f8fafc" font-weight="700">plan</text>
-        <text x="240" y="46" fill="#94a3b8">summaries only</text>
+        <text x="80" y="18" fill="#f8fafc" font-weight="700">explore</text>
+        <text x="80" y="34" fill="#94a3b8">summaries only</text>
+        <text x="80" y="66" fill="#f8fafc" font-weight="700">audit</text>
+        <text x="80" y="82" fill="#94a3b8">summaries only</text>
+        <text x="80" y="114" fill="#f8fafc" font-weight="700">plan</text>
+        <text x="80" y="130" fill="#94a3b8">summaries only</text>
       </g>
     </g>
 
@@ -103,19 +103,23 @@
       </g>
     </g>
 
-    <path d="M862 262 C840 430 704 430 678 242" fill="none" stroke="#d97757" stroke-width="2" stroke-dasharray="7 8" marker-end="url(#arrowWarm)"/>
-    <text x="775" y="438" text-anchor="middle" fill="#d97757" font-size="14" font-weight="700">rework ≤2</text>
+    <path d="M864 252 C848 282 736 282 684 246" fill="none" stroke="#d97757" stroke-width="2" stroke-dasharray="7 8" marker-end="url(#arrowWarm)"/>
+    <text x="774" y="282" text-anchor="middle" fill="#d97757" font-size="14" font-weight="700">rework ≤2</text>
 
-    <g transform="translate(40 512)">
+    <g transform="translate(40 448)">
       <rect x="0" y="0" width="1090" height="70" rx="16" fill="#111827" stroke="#475569" stroke-width="1.2"/>
       <text x="24" y="30" fill="#f8fafc" font-size="15" font-weight="700">Gate decisions</text>
       <text x="24" y="52" fill="#94a3b8" font-size="12">merge / rework / re-spec</text>
-      <path d="M188 35h780" stroke="#334155" stroke-width="1"/>
-      <circle cx="1000" cy="35" r="16" fill="none" stroke="#10a37f" stroke-width="2"/>
-      <path d="M990 35l7 7 15-16" fill="none" stroke="#10a37f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M188 35h292" stroke="#334155" stroke-width="1"/>
+      <path d="M512 18h128a16 16 0 0 1 16 16v2a16 16 0 0 1-16 16H512a16 16 0 0 1-16-16v-2a16 16 0 0 1 16-16z" fill="#0f172a" stroke="#10a37f" stroke-width="1.2"/>
+      <path d="M690 18h128a16 16 0 0 1 16 16v2a16 16 0 0 1-16 16H690a16 16 0 0 1-16-16v-2a16 16 0 0 1 16-16z" fill="#0f172a" stroke="#d97757" stroke-width="1.2"/>
+      <path d="M868 18h128a16 16 0 0 1 16 16v2a16 16 0 0 1-16 16H868a16 16 0 0 1-16-16v-2a16 16 0 0 1 16-16z" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2"/>
+      <text x="576" y="40" text-anchor="middle" fill="#cbd5e1" font-size="12" font-weight="700">merge</text>
+      <text x="754" y="40" text-anchor="middle" fill="#cbd5e1" font-size="12" font-weight="700">rework</text>
+      <text x="932" y="40" text-anchor="middle" fill="#cbd5e1" font-size="12" font-weight="700">re-spec</text>
     </g>
 
-    <g transform="translate(40 626)">
+    <g transform="translate(40 566)">
       <text x="0" y="-18" fill="#f8fafc" font-size="18" font-weight="700">Four convergence points</text>
       <text x="245" y="-18" fill="#94a3b8" font-size="13">each truth exists once</text>
       <g fill="#111827" stroke="#475569" stroke-width="1.2">
