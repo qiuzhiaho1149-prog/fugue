@@ -31,7 +31,11 @@ Two files rule this system. THIS file = how the chief engineer operates. `standi
 1. **Preflight**: confirm repo + base SHA; root `AGENTS.md` exists.
 2. **Author the order** (§3) — task-specific content ONLY; standing clauses ride along automatically.
 3. **Pre-dispatch verification (MANDATORY — order defects are the #1 drift source)**: on the BASE commit verify: paths exist; file:line matches (re-grep; never trust memory or prior audits); SHAs exist; provenance accurate (committed vs on-disk); acceptance commands runnable on this host (`python3.11`, not `python`); invariants don't contradict items; TOOLBOX instruments actually exist.
-4. **Dispatch**: `codex-task.sh new <slug> ... --prompt-file <f>` via background Bash. Never block; completion auto-notifies.
+4. **Dispatch**: one native subagent per worker — `Agent(subagent_type="general-purpose", model="haiku", run_in_background=true, description="codex: <slug>")`. NEVER raw background Bash from the main session (task panel renders it as an unlabeled raw box and it can zombie). The babysitter subagent's prompt must be self-contained:
+   - Run `~/.claude/skills/codex-team/scripts/codex-task.sh new <slug> --repo <root> ... --prompt-file <f>` via Bash `run_in_background=true`, then WAIT for the completion notification — no polling, no sleep loops.
+   - On completion: read `~/.claude/codex-team/runs/<slug>/meta.json` and the tail of `last.md`, then return EXACTLY: slug, exit_code, status, thread_id, worktree path, ≤10-line summary of the worker report, plus any sandbox-denial lines from `events.jsonl`. Summary = delta-only anchored facts (file:line / hashes / numbers / surprises & deviations); drop the worker's process narration and self-assessment adjectives verbatim — do not relay filler upward.
+   - The subagent must NOT review, fix, or re-dispatch — babysit and report only; the review gate stays with the chief engineer.
+   Same pattern for `resume`. Stuck worker → TaskStop the subagent, then §6.
 5. **Review gate** (every iteration; "it works" never suffices):
    a. `codex-task.sh review <slug>` — mechanical checks (budgets, compat/fallback/skip patterns, whitespace, leftovers).
    b. Read the FULL diff (`codex-task.sh diff <slug>`); check import directions + the order's invariants.
@@ -39,6 +43,7 @@ Two files rule this system. THIS file = how the chief engineer operates. `standi
    d. Worker claims of "pre-existing failure" → verify on the clean base before ruling.
    e. Any new gate/threshold/state machine → justify like a new dependency.
    f. Trust-anchor code (measurement/risk/money paths) → cross-family adversarial audit before merge.
+   g. Report density (S7b): over budget, unanchored claims, or process-narration padding → counts as a rework finding like a failing test; the resume order quotes S7b.
 6. **Rework**: ruling + concrete feedback (file:line, expected vs actual) → `codex-task.sh resume <slug>`. ~2 rounds max; still failing → the spec was wrong: re-spec or take over.
 7. **Merge & clean**: merge into the integration branch only after the gate; log outcome + failed approaches to the program ledger. **Clean timing**: `clean <slug>` only after USER-level acceptance, not after the chief-engineer gate — for user-visible deliverables (visuals/UI/copy) the chief gate passing does not end rework probability. The wrapper enforces this (refuses to clean an unmerged branch without `--force`); `resume` self-heals a missing worktree from the retained branch.
 
@@ -92,10 +97,16 @@ codex-task.sh review <slug>                     # mechanical review-gate checks
 codex-task.sh status|diff|list|clean <slug>
 ```
 
+Liveness (built into the wrapper):
+- **Stall watchdog**: no new `events.jsonl` output for `CODEX_STALL_TIMEOUT` (default 900s) → kill the worker, **auto-resume the same thread once** (`CODEX_AUTO_RESUME`, default 1) with a restart nudge; still stalling → final `status="stuck"`, non-zero exit. meta.json records `pid` while running and `restarts` at the end.
+- **Zombie self-heal**: `list`/`status` check the recorded pid; a "running" entry whose process is gone is rewritten to `status="died"` on the spot. Status vocabulary: `running | done | failed | stuck | died | cleaned`.
+- **Per-dispatch `-c` overrides** baked into every dispatch (never edits `~/.codex/config.toml` — desktop Codex keeps its own settings): `model_verbosity="low"` (API-level cut of narrative filler in reports; pairs with S7b register law), `notify=[]` (SkyComputerUseClient orphan bug openai/codex#26293), `stream_idle_timeout_ms=60000` + `stream_max_retries=3`, figma MCP disabled, node_repl/codegraph startup timeouts capped.
+- Babysitter subagents must surface `status`/`restarts` from the final `CODEX-TASK` line verbatim; `stuck`/`died` → chief engineer decides resume vs re-spec (the wrapper already burned its one auto-restart).
+
 Verified facts (codex-cli 0.137.0-alpha.4, 2026-06-11):
 - Binary: `/Applications/Codex.app/Contents/Resources/codex` (npm `codex` on PATH is BROKEN); wrapper handles via `CODEX_BIN`.
 - Wrapper passes `-s workspace-write -c 'approval_policy="never"' --json -o last.md --add-dir <git-common-dir>` (without add-dir, `git commit` in a worktree is sandbox-blocked). No `-a` flag exists in this version.
-- `</dev/null` REQUIRED on any non-TTY `codex exec` — else it blocks on "Reading additional input from stdin...".
+- `</dev/null` REQUIRED on any non-TTY `codex exec` — else it blocks on "Reading additional input from stdin...". The wrapper now adds this itself (and writes codex output straight to `events.jsonl`, stderr to `stderr.log` — no tee pipe, so no zombie reader); only bare `codex exec` calls outside the wrapper still need it manually.
 - Thread id: first `thread.started` event (`thread_id`); `exec resume` rejects `-C/-s/--add-dir` (wrapper cd's into the worktree).
 - User config defaults `danger-full-access` + `xhigh` — wrapper overrides sandbox; ALWAYS set `--effort` (low mechanical / medium normal / high design-heavy).
 - `--net` only for installs/APIs (workspace-write blocks network); `--search` enables the web-search tool for research-flavored orders.
@@ -121,7 +132,7 @@ Slice by **acceptance boundary**, not by code layer: one slice = one binary acce
 ## 6. Failure modes
 
 - Auth expired: worker fails immediately → user runs `codex login` interactively.
-- Worker hangs: kill the shell, read `events.jsonl` tail, resume with a narrower instruction.
+- Worker hangs: the wrapper watchdog kills + auto-resumes once on its own; `status="stuck"` means that already failed — read `events.jsonl` + `stderr.log` tail, then resume with a narrower instruction (don't just re-poke). Babysitter unresponsive → TaskStop it; `list` will self-heal the meta to `died`.
 - Sandbox denials in events.jsonl → fix with `--net`/rescoping, never `danger-full-access`.
 - Quota exhausted: the thread persists; resume later, same slug.
 - Killed mid-flight: worktree keeps uncommitted work, thread keeps context → inspect state, resume with a closeout order; never redispatch blind.
