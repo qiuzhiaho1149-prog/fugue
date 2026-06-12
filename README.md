@@ -52,6 +52,22 @@ flowchart TD
 
 </details>
 
+## The token economy (the point of all this)
+
+**The cheapest token is the one you never spend.** Every mechanism here is also a token mechanism:
+
+| Mechanism | What it stops paying for |
+|---|---|
+| 🧾 **Specs instead of docs** | One artifact (contract + tests) replaces design doc + requirements doc + work-order prose — written once, never re-explained to a new session |
+| 📌 **Pointer work-orders** | Codex derives the file system, git state, and test runner itself; orders carry `file:line` + acceptance only — no copied context to pay for twice |
+| 🪜 **Tiered routing** | Explicit Sonnet/Haiku for non-judgment work; unrouted multi-agent inherits the big model (Anthropic measured ~15× token burn) |
+| 🧹 **Doc quarantine** | The main session never ingests a >100-line document — subagents digest, main reads pointers; noisy greps/logs are isolated the same way |
+| 🗂️ **Sliced state files** | Orchestrator reads a 1-page INDEX, never a monolithic state dump |
+| 🔁 **Offloaded implementation** | The long compile-fail-retry loops happen in Codex's context, not your orchestrator's — the expensive window holds decisions only |
+| 🧱 **Brick isolation** | Use cases never call each other → workers need zero context about the rest of the system |
+
+The expensive context window is reserved for exactly one thing: **judgment**.
+
 ## What's inside
 
 | Path | What it is |
