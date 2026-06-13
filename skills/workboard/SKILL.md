@@ -17,10 +17,11 @@ description: >
 ## Inspect
 
 ```bash
-~/.claude/skills/workboard/scripts/workboard.sh <repo-root>
+~/.claude/skills/workboard/scripts/workboard.sh [--flags-only] <repo-root>
 ```
 
-Sections: MAINLINE / WORKTREES (with parentage per branch) / CODEX RUNS / FLAGS.
+Sections: MAINLINE / WORKTREES (with parentage per branch) / CODEX RUNS / AWAITING-REVIEW / FLAGS.
+Use `--flags-only` for token-cheap routine checks.
 Exit 2 = flags present. Flags and their meaning:
 
 | flag | meaning | default verdict |
@@ -30,6 +31,7 @@ Exit 2 = flags present. Flags and their meaning:
 | `STALE` | no commit >7 days | park-or-kill verdict required |
 | `DIRTY-PARKED` | uncommitted changes sitting >2 days | commit as WIP to its branch, or discard consciously |
 | `ZOMBIE-RUN` | codex run "running" >24h | inspect events.jsonl tail, resume or mark failed |
+| `STALE-REVIEW` | done codex run remains unmerged >48h | review, merge, or close the branch |
 
 ## Triage protocol (the intake side — run BEFORE opening any new line of work)
 
