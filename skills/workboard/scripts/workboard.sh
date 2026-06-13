@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only Fugue workboard inspector.
-# Usage: workboard.sh <repo-path>
+# Usage: workboard.sh [--flags-only] <repo-path>
 set -euo pipefail
 
 RUNS_BASE="${RUNS_BASE:-$HOME/.claude/codex-team/runs}"
@@ -8,9 +8,22 @@ NOW_EPOCH=$(date -u +%s)
 FLAGS=()
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+usage() { echo "usage: workboard.sh [--flags-only] <repo-path>"; }
 
-repo_arg="${1:-}"
-[[ -n "$repo_arg" && $# -eq 1 ]] || die "usage: workboard.sh <repo-path>"
+flags_only=0
+repo_arg=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --flags-only) flags_only=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      [[ -z "$repo_arg" ]] || die "$(usage)"
+      repo_arg="$1"
+      ;;
+  esac
+  shift
+done
+[[ -n "$repo_arg" ]] || die "$(usage)"
 [[ -d "$repo_arg" ]] || die "not a git repo: $repo_arg"
 
 repo_abs=$(cd "$repo_arg" 2>/dev/null && pwd -P) || die "not a git repo: $repo_arg"
@@ -184,6 +197,31 @@ worktree_registered() {
   return 1
 }
 
+primary_branch_for_repo() {
+  local repo="$1"
+  if git -C "$repo" rev-parse --verify --quiet refs/heads/main >/dev/null; then
+    echo "main"
+  elif git -C "$repo" rev-parse --verify --quiet refs/heads/master >/dev/null; then
+    echo "master"
+  else
+    echo ""
+  fi
+}
+
+done_unmerged() {
+  local repo="$1" branch="$2" primary=""
+  [[ -n "$repo" && -n "$branch" && -d "$repo" ]] || return 1
+  primary=$(primary_branch_for_repo "$repo")
+  [[ -n "$primary" ]] || return 1
+  ! git -C "$repo" merge-base --is-ancestor "$branch" "$primary" >/dev/null 2>&1
+}
+
+meta_older_than_48h() {
+  local meta="$1" epoch=""
+  epoch=$(stat -f %m "$meta" 2>/dev/null || echo "")
+  [[ -n "$epoch" ]] && [[ $(( NOW_EPOCH - epoch )) -gt 172800 ]]
+}
+
 print_worktree_row() {
   local path="$1" head="$2" branch="$3"
   local branch_label="${branch:-detached}" head_short base base_short parentage age dirty branch_ok
@@ -194,8 +232,10 @@ print_worktree_row() {
   parentage=$(classify_parentage "$branch")
   age=$(age_days "$head")
   dirty=$(dirty_state "$path")
-  printf "%-78s | %-28s | %-7s | %-7s | %-32s | %-4s | %s\n" \
-    "$path" "$branch_label" "$head_short" "$base_short" "$parentage" "$age" "$dirty"
+  if [[ "$flags_only" -eq 0 ]]; then
+    printf "%-78s | %-28s | %-7s | %-7s | %-32s | %-4s | %s\n" \
+      "$path" "$branch_label" "$head_short" "$base_short" "$parentage" "$age" "$dirty"
+  fi
 
   branch_ok=0
   [[ -n "$branch" ]] && branch_exists "$branch" && branch_ok=1
@@ -213,9 +253,11 @@ print_worktree_row() {
 
 print_worktrees() {
   local line="" path="" head="" branch="" seen=0
-  echo "WORKTREES:"
-  printf "%-78s | %-28s | %-7s | %-7s | %-32s | %-4s | %s\n" \
-    "path" "branch" "head" "base" "parentage" "age" "dirty"
+  if [[ "$flags_only" -eq 0 ]]; then
+    echo "WORKTREES:"
+    printf "%-78s | %-28s | %-7s | %-7s | %-32s | %-4s | %s\n" \
+      "path" "branch" "head" "base" "parentage" "age" "dirty"
+  fi
   while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ -z "$line" ]]; then
       if [[ -n "$path" ]]; then
@@ -232,7 +274,7 @@ print_worktrees() {
       detached) branch="" ;;
     esac
   done < <(git -C "$repo_top" worktree list --porcelain; printf '\n')
-  [[ "$seen" -eq 1 ]] || echo "(none)"
+  [[ "$seen" -eq 1 || "$flags_only" -eq 1 ]] || echo "(none)"
 }
 
 repo_matches_meta() {
@@ -242,14 +284,16 @@ repo_matches_meta() {
 
 print_codex_runs() {
   local meta="" slug="" status="" meta_repo="" branch="" worktree="" started="" bexists wexists epoch age_hours found=0
-  echo "CODEX RUNS:"
-  printf "%-28s | %-10s | %-13s | %s\n" "slug" "status" "branch-exists" "worktree-exists"
+  if [[ "$flags_only" -eq 0 ]]; then
+    echo "CODEX RUNS:"
+    printf "%-28s | %-10s | %-13s | %s\n" "slug" "status" "branch-exists" "worktree-exists"
+  fi
   if [[ ! -d "$RUNS_BASE" ]]; then
-    echo "(RUNS_BASE missing: $RUNS_BASE)"
+    [[ "$flags_only" -eq 1 ]] || echo "(RUNS_BASE missing: $RUNS_BASE)"
     return
   fi
   if ! command -v jq >/dev/null 2>&1; then
-    echo "(jq missing; codex run metadata skipped)"
+    [[ "$flags_only" -eq 1 ]] || echo "(jq missing; codex run metadata skipped)"
     return
   fi
   for meta in "$RUNS_BASE"/*/meta.json; do
@@ -263,7 +307,7 @@ print_codex_runs() {
     started=$(jq -r '.started // empty' "$meta")
     bexists="no"; branch_exists "$branch" && bexists="yes"
     wexists="no"; [[ -n "$worktree" ]] && worktree_registered "$worktree" && [[ -d "$worktree" ]] && wexists="yes"
-    printf "%-28s | %-10s | %-13s | %s\n" "$slug" "$status" "$bexists" "$wexists"
+    [[ "$flags_only" -eq 1 ]] || printf "%-28s | %-10s | %-13s | %s\n" "$slug" "$status" "$bexists" "$wexists"
     found=1
     if [[ "$status" == "running" ]]; then
       epoch=$(iso_epoch "$started")
@@ -273,16 +317,49 @@ print_codex_runs() {
       fi
     fi
   done
-  [[ "$found" -eq 1 ]] || echo "(none)"
+  [[ "$found" -eq 1 || "$flags_only" -eq 1 ]] || echo "(none)"
 }
 
-echo "MAINLINE:"
-printf "%-12s %s\n" "$mainline_name" "$mainline_sha"
-echo
+print_awaiting_review() {
+  local meta="" slug="" status="" meta_repo="" branch="" found=0 repo_name=""
+  [[ "$flags_only" -eq 1 ]] || echo "AWAITING-REVIEW"
+  if [[ ! -d "$RUNS_BASE" ]]; then
+    [[ "$flags_only" -eq 1 ]] || echo "  (none)"
+    return
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    [[ "$flags_only" -eq 1 ]] || echo "  (none)"
+    return
+  fi
+  for meta in "$RUNS_BASE"/*/meta.json; do
+    [[ -f "$meta" ]] || continue
+    meta_repo=$(jq -r '.repo // empty' "$meta" 2>/dev/null || echo "")
+    repo_matches_meta "$meta_repo" || continue
+    status=$(jq -r '.status // empty' "$meta")
+    [[ "$status" == "done" ]] || continue
+    slug=$(jq -r '.slug // empty' "$meta")
+    branch=$(jq -r '.branch // empty' "$meta")
+    [[ -n "$meta_repo" && -n "$branch" ]] || continue
+    done_unmerged "$meta_repo" "$branch" || continue
+    repo_name=$(basename "$meta_repo")
+    [[ "$flags_only" -eq 1 ]] || printf "  %s  branch=%s  repo=%s  (done, unmerged)\n" "$slug" "$branch" "$repo_name"
+    found=1
+    meta_older_than_48h "$meta" && FLAGS+=("STALE-REVIEW $slug done+unmerged >48h")
+  done
+  [[ "$found" -eq 1 || "$flags_only" -eq 1 ]] || echo "  (none)"
+}
+
+if [[ "$flags_only" -eq 0 ]]; then
+  echo "MAINLINE:"
+  printf "%-12s %s\n" "$mainline_name" "$mainline_sha"
+  echo
+fi
 print_worktrees
-echo
+[[ "$flags_only" -eq 1 ]] || echo
 print_codex_runs
-echo
+[[ "$flags_only" -eq 1 ]] || echo
+print_awaiting_review
+[[ "$flags_only" -eq 1 ]] || echo
 if [[ "${#FLAGS[@]}" -eq 0 ]]; then
   echo "FLAGS: none"
   exit 0

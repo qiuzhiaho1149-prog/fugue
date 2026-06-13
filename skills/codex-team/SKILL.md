@@ -45,7 +45,7 @@ Two files rule this system. THIS file = how the chief engineer operates. `standi
    f. Trust-anchor code (measurement/risk/money paths) → cross-family adversarial audit before merge.
    g. Report density (S7b): over budget, unanchored claims, or process-narration padding → counts as a rework finding like a failing test; the resume order quotes S7b.
 6. **Rework**: ruling + concrete feedback (file:line, expected vs actual) → `codex-task.sh resume <slug>`. ~2 rounds max; still failing → the spec was wrong: re-spec or take over.
-7. **Merge & clean**: merge into the integration branch only after the gate; log outcome + failed approaches to the program ledger. **Clean timing**: `clean <slug>` only after USER-level acceptance, not after the chief-engineer gate — for user-visible deliverables (visuals/UI/copy) the chief gate passing does not end rework probability. The wrapper enforces this (refuses to clean an unmerged branch without `--force`); `resume` self-heals a missing worktree from the retained branch.
+7. **Merge & clean**: after the gate, run `merge-next --repo <root>` from mainline — it merges one ready branch per call (a `SLICE-COLLISION` means footprints overlapped → re-slice, don't hand-resolve), so remaining worktrees rebase before their next review; log outcome + failed approaches to the program ledger. **Clean timing**: `clean <slug>` only after USER-level acceptance, not after the chief-engineer gate — for user-visible deliverables (visuals/UI/copy) the chief gate passing does not end rework probability. The wrapper enforces this (refuses to clean an unmerged branch without `--force`); `resume` self-heals a missing worktree from the retained branch.
 
 ## 3. Authoring a work order
 
@@ -91,15 +91,32 @@ For heterogeneous design work: dispatch a read-only DESIGN MEMO order first (cur
 Wrapper: `~/.claude/skills/codex-team/scripts/codex-task.sh` (state: `~/.claude/codex-team/runs/<slug>/`).
 
 ```bash
-codex-task.sh new <slug> --repo <root> [--base <ref>] [--model <m>] [--effort low|medium|high|xhigh] [--net] [--search] [--sandbox <mode>] --prompt-file <f>
-codex-task.sh resume <slug> --prompt-file <f>   # rework, same thread (standing orders re-appended)
+codex-task.sh preflight --repo <root> [--cap N] <order.json> [<order.json>...]
+codex-task.sh new <slug> --repo <root> [--base <ref>] [--model <m>] [--effort low|medium|high|xhigh] [--net] [--search] [--sandbox <mode>] --prompt-file <f> [--order <order.json>]
+codex-task.sh resume <slug> --prompt-file <f>   # rework, same thread (standing orders compacted when unchanged)
 codex-task.sh review <slug>                     # mechanical review-gate checks
-codex-task.sh status|diff|list|clean <slug>
+codex-task.sh merge-next --repo <root>           # serial mainline merge, one ready branch per call
+codex-task.sh violations [<slug>]               # raw per-run ledger, or aggregate repeat rules across runs
+codex-task.sh diff <slug> [--since-review]
+codex-task.sh status|list|clean <slug>
 ```
+
+`new` records the standing-orders sha; `resume` sends a one-line unchanged marker unless that file changed, then re-appends it in full.
+`review` records `reviewed_sha`; `diff --since-review` prints only the delta since the last review, falling back to the full diff when no review is recorded.
+`SLICE-COLLISION` from `merge-next` means footprints overlapped; re-slice instead of hand-resolving (preflight's in-flight check should have caught it).
+`review` also writes `violations.jsonl`; use `violations` to spot repeat-offender rules before proposing standing-order patches.
+
+### Order manifest & preflight
+
+For multi-worker dispatch, create one `order.json` next to each prompt and run `preflight`; multi-worker dispatch MUST pass preflight first.
+Schema: `{"slug":"exec-retry-fix","depends_on":[],"allowed_paths":["src/exec/**"],"forbidden_paths":["src/risk/**"],"acceptance":"pytest ..."}`.
+Required: `slug`, non-empty `allowed_paths`, `acceptance`; optional `depends_on`/`forbidden_paths` default to `[]`.
+`preflight --repo <root> [--cap N] <order.json>...` checks schema, capacity (default 2, max 3), batch/in-flight footprint overlap, and dependencies.
+Attach the manifest with `new --order <order.json>`; `review` prints `OUT-OF-FOOTPRINT` for advisory scope violations.
 
 Liveness (built into the wrapper):
 - **Stall watchdog**: no new `events.jsonl` output for `CODEX_STALL_TIMEOUT` (default 900s) → kill the worker, **auto-resume the same thread once** (`CODEX_AUTO_RESUME`, default 1) with a restart nudge; still stalling → final `status="stuck"`, non-zero exit. meta.json records `pid` while running and `restarts` at the end.
-- **Zombie self-heal**: `list`/`status` check the recorded pid; a "running" entry whose process is gone is rewritten to `status="died"` on the spot. Status vocabulary: `running | done | failed | stuck | died | cleaned`.
+- **Zombie self-heal**: `list`/`status` check the recorded pid; a "running" entry whose process is gone is rewritten to `status="died"` on the spot. Status vocabulary: `running | done | failed | stuck | died | merged | cleaned`.
 - **Per-dispatch `-c` overrides** baked into every dispatch (never edits `~/.codex/config.toml` — desktop Codex keeps its own settings): `model_verbosity="low"` (API-level cut of narrative filler in reports; pairs with S7b register law), `notify=[]` (SkyComputerUseClient orphan bug openai/codex#26293), `stream_idle_timeout_ms=60000` + `stream_max_retries=3`, figma MCP disabled, node_repl/codegraph startup timeouts capped.
 - Babysitter subagents must surface `status`/`restarts` from the final `CODEX-TASK` line verbatim; `stuck`/`died` → chief engineer decides resume vs re-spec (the wrapper already burned its one auto-restart).
 
